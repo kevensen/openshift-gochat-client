@@ -30,7 +30,6 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"Host": t.chatServer,
 	}
-	glog.Infoln("Chat Server set to", data["Host"])
 
 	if authCookie, err := r.Cookie("auth"); err == nil {
 		data["UserData"] = objx.MustFromBase64(authCookie.Value)
@@ -48,11 +47,13 @@ func main() {
 	templatePath = flag.String("templatePath", "templates/", "The path to the HTML templates.  This is relative to the location from which \"gochat\" is executed.  Can be absolute.")
 	var openshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
 	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
+	var chatServerDomain = flag.String("chatServerDomain", "svc.cluster.local", "The domain of the chat server.")
 	flag.Parse()
 
 	myAuthHandler := new(authHandler)
 	myAuthHandler.next = &templateHandler{filename: "chat.html", chatServer: *chatServer}
 	myAuthHandler.ocp.apiHost = *openshiftApiHost
+	myAuthHandler.chatServerDomain = *chatServerDomain
 	http.Handle("/", myAuthHandler)
 	http.Handle("/chat", myAuthHandler)
 	http.Handle("/denied", &templateHandler{filename: "denied.html"})

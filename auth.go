@@ -11,8 +11,9 @@ import (
 )
 
 type authHandler struct {
-	next http.Handler
-	ocp  OpenShiftAuth
+	next             http.Handler
+	ocp              OpenShiftAuth
+	chatServerDomain string
 }
 
 func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -46,9 +47,10 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 		"name": user.Metadata.Name,
 	}).MustBase64()
 	http.SetCookie(w, &http.Cookie{
-		Name:  "auth",
-		Value: authCookieValue,
-		Path:  "/"})
+		Name:   "auth",
+		Value:  authCookieValue,
+		Path:   "/",
+		Domain: h.chatServerDomain})
 
 	w.Header()["Location"] = []string{"/chat"}
 	w.WriteHeader(http.StatusTemporaryRedirect)
