@@ -51,6 +51,7 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 		Value:  authCookieValue,
 		Path:   "/",
 		Domain: h.chatServerDomain})
+	glog.Infoln("Cookie Written")
 
 	w.Header()["Location"] = []string{"/chat"}
 	w.WriteHeader(http.StatusTemporaryRedirect)
