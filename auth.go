@@ -1,15 +1,18 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"crypto/md5"
+	"io"
 	"net/http"
 	"strings"
+
+	"github.com/golang/glog"
+	"github.com/stretchr/objx"
 )
 
 type authHandler struct {
-	next    http.Handler
-	apiHost string
+	next http.Handler
+	ocp  OpenShiftAuth
 }
 
 func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -24,16 +27,29 @@ func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	segs := strings.Split(r.URL.Path, "/")
-	action := segs[2]
-	provider := segs[3]
+func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	token := r.PostFormValue("token")
+	user, err, status := h.ocp.login(token)
+	if err != nil {
+		glog.Fatalln("Error Logging into OpenShift:", err)
+	}
 
-	log.Println("Action", action, "Provider", provider)
+	if status != 200 {
+		glog.Fatalln("Error Logging into OpenShift resulted in status:", status)
+	}
 
-}
+	m := md5.New()
+	io.WriteString(m, strings.ToLower(user.Metadata.Name))
 
-func MustAuth(handler http.Handler, openshiftApiHost string) http.Handler {
-	fmt.Println("OpenShift API Host being set in MustAuth is", openshiftApiHost)
-	return &authHandler{next: handler, apiHost: openshiftApiHost}
+	authCookieValue := objx.New(map[string]interface{}{
+		"name": user.Metadata.Name,
+	}).MustBase64()
+	http.SetCookie(w, &http.Cookie{
+		Name:  "auth",
+		Value: authCookieValue,
+		Path:  "/"})
+
+	w.Header()["Location"] = []string{"/chat"}
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }

@@ -1,28 +1,32 @@
-<html>
-	<head>
-		<title>Login</title>
-		<link rel="stylesheet"
-				href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
-	</head>
-	<body>
-		<div class="container">
-			<div class="page-header">
-				<h1>Sign in</h1>
-			</div>
-			<div class="panel panel-danger">
-				<div class="panel-heading">
-					<h3>In order to chat you must be signed in</h3>
-				</div>
-				<div class="panel-body">
-					<p>Select the service with which you would like to sign in</p>
-					<ul>
-						<li><a href="/auth/login/facebook">Facebook</a></li>
-						<li><a href="/auth/login/github">GitHub</a></li>
-						<li><a href="/auth/login/google">Google</a></li>
-						<li><a href="/authbasic">Basic Auth</a></li>
-					</ul>
-				</div>
-			</div>
-		</div>
-	</body>
+
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="description" content="">
+        <meta name="author" content="">
+        <link rel="icon" href="https://golang.org/doc/gopher/frontpage.png">
+
+        <title>OpenShift Gochat Client</title>
+
+        <!-- Bootstrap core CSS -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+        <!-- Custom styles for this template -->
+        <link href="signin.css" rel="stylesheet">
+    </head>
+
+    <body>
+        <div class="card text-center mx-auto w-75">
+            <img class="card-img-top w-75 p-5" src="https://blog.openshift.com/wp-content/uploads/Logotype_RH_OpenShiftContainerPlatform_wLogo_CMYK_Black-1024x263.jpg">
+            <div class="card-block">
+                    <h4 class="card-title">Please sign in to OpenShift Gochat</h4>
+                    <form class="form-signin" action="/auth/" method="post" id="loginform" role="form">
+                        <input type="password" class="form-control" id="token" name="token" placeholder="OpenShift Token">
+                        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign In</button>
+                    </form>
+            </div>
+        </div>
+    </body>
 </html>

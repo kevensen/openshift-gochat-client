@@ -4,18 +4,19 @@ package main
 import (
 	"flag"
 	"html/template"
-	"log"
 	"net/http"
 	"path/filepath"
 	"sync"
 
+	"github.com/golang/glog"
 	"github.com/stretchr/objx"
 )
 
 type templateHandler struct {
-	once     sync.Once
-	filename string
-	templ    *template.Template
+	once       sync.Once
+	filename   string
+	templ      *template.Template
+	chatServer string
 }
 
 var templatePath *string
@@ -27,8 +28,9 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		t.templ = template.Must(template.ParseFiles(filepath.Join(*templatePath, t.filename)))
 	})
 	data := map[string]interface{}{
-		"Host": r.Host,
+		"Host": t.chatServer,
 	}
+	glog.Infoln("Chat Server set to", data["Host"])
 
 	if authCookie, err := r.Cookie("auth"); err == nil {
 		data["UserData"] = objx.MustFromBase64(authCookie.Value)
@@ -42,21 +44,35 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 *
  */
 func main() {
-	var host = flag.String("host", ":8080", "The host address of the application.")
+	var host = flag.String("host", "localhost:8080", "The host address of the application.")
 	templatePath = flag.String("templatePath", "templates/", "The path to the HTML templates.  This is relative to the location from which \"gochat\" is executed.  Can be absolute.")
 	var openshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
+	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
 	flag.Parse()
 
-	r := newRoom()
-	http.Handle("/", MustAuth(&templateHandler{filename: "chat.html"}, *openshiftApiHost))
-	http.Handle("/chat", MustAuth(&templateHandler{filename: "chat.html"}, *openshiftApiHost))
+	myAuthHandler := new(authHandler)
+	myAuthHandler.next = &templateHandler{filename: "chat.html", chatServer: *chatServer}
+	myAuthHandler.ocp.apiHost = *openshiftApiHost
+	http.Handle("/", myAuthHandler)
+	http.Handle("/chat", myAuthHandler)
+	http.Handle("/denied", &templateHandler{filename: "denied.html"})
 	http.Handle("/login", &templateHandler{filename: "login.html"})
-	http.HandleFunc("/auth/", loginHandler)
+	http.HandleFunc("/auth/", myAuthHandler.loginHandler)
+	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:   "auth",
+			Value:  "",
+			Path:   "/",
+			MaxAge: -1,
+		})
+		w.Header()["Location"] = []string{"/logoutpage"}
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	})
+	http.Handle("/logoutpage", &templateHandler{filename: "logoutpage.html"})
 
-	go r.run()
-	log.Println("Starting the web server on", *host)
+	glog.Infoln("Starting the web server on", *host)
 	if err := http.ListenAndServe(*host, nil); err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		glog.Fatalln("ListenAndServe: ", err)
 	}
 
 }

@@ -1,38 +1,52 @@
 <html>
   <head>
     <title>Chat</title>
-    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <link rel="icon" href="https://golang.org/doc/gopher/frontpage.png">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
     <style>
-	ul#messages	{ list-style: none; }
-	ul#messages li	{ margin-bottom: 2px; }
-	ul#messages li img	{ margin-right: 10px; }
+        ul#messages	{ list-style: none; }
+        ul#messages li	{ margin-bottom: 2px; }
+        ul#messages li img	{ margin-right: 10px; }
     </style>
   </head>
   <body>
-    <div class="container">
-	<div class="panel panel-default">
-		<div class="panel-body">
-			<ul id="messages"></ul>
-		</div>
- 	</div>
-    <form id="chatbox" role="form">
-	<div class="form-group">
-		<label for="message">Send message as {{.UserData.name}}</label> or <a href="/logout">Sign Out</a> or <a href="/upload">Upload New Picture</a>
-		<textarea id="message" class="form-control"></textarea>
-	</div>
-	<input type="submit" value="Send" class="btn btn-default" />
-    </form>
-    </div>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     
+    <div class="container">
+        <div class="card text-center border-primary mx-auto w-75">
+            <form id="chatbox" role="form">
+                <div class="form-group">
+                    <div class="card-header">
+                        <nav class="navbar navbar-light bg-light">
+                            User: {{.UserData.name}}
+                            <input class="btn btn-outline-primary" type="submit" id="send" value="Send" />
+                            <a href="/logout" class="btn btn-outline-danger" role="button" id="logout">Logout</a>
+                        </nav>
+                    </div>
+                    <div class="card-body"><textarea id="message" class="form-control"></textarea></div>
+                    <div class="card-footer text-left" style="max-height: 200; overflow-y:scroll" id="messagebox" name="messagebox">
+                        <ul id="messages"></ul>
+                    </div>
+                </div>
+            </form>
+        </div>
+       
+    </div>
     
     <script>
+        
 
       $(function(){
 
         var socket = null;
         var msgBox = $("#chatbox textarea");
         var messages = $("#messages");
+
+        $("#messagebox").on('scroll', function(){
+            scrolled=true;
+        });
 
         $("#chatbox").submit(function(){
 
@@ -59,10 +73,6 @@
             var msg = eval("("+e.data+")");
             messages.append(
                     $("<li>").append(
-							$("<img>").attr("title", msg.Name).css({
-								width:50,
-								verticalAlign:"middle"
-							}).attr("src", msg.AvatarURL),
 							$("<strong>").text(msg.Name + ": "),
 							$("<span>").text(msg.Message),
 							$("<strong>").text(" - " + msg.When)
