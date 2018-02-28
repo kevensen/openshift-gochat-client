@@ -30,12 +30,10 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"Host": t.chatServer,
 	}
-
+	glog.Infoln("Server Host:", data["Host"])
 	if authCookie, err := r.Cookie("auth"); err == nil {
 		data["UserData"] = objx.MustFromBase64(authCookie.Value)
 	}
-	w.Header()["Connection"] = []string{"upgrade"}
-	w.Header()["Upgrade"] = []string{"websocket"}
 	t.templ.Execute(w, data)
 
 }
