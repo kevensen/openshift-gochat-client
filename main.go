@@ -47,7 +47,7 @@ func main() {
 	templatePath = flag.String("templatePath", "templates/", "The path to the HTML templates.  This is relative to the location from which \"gochat\" is executed.  Can be absolute.")
 	var openshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
 	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
-	var chatServerDomain = flag.String("chatServerDomain", "svc.cluster.local", "The domain of the chat server.")
+	var chatServerDomain = flag.String("chatServerDomain", "svc", "The domain of the chat server.")
 	flag.Parse()
 
 	myAuthHandler := new(authHandler)

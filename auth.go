@@ -46,6 +46,9 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 	authCookieValue := objx.New(map[string]interface{}{
 		"name": user.Metadata.Name,
 	}).MustBase64()
+	glog.Infoln("Cookie authCookieValue:", authCookieValue)
+	glog.Infoln("Cookie domain", h.chatServerDomain)
+
 	http.SetCookie(w, &http.Cookie{
 		Name:   "auth",
 		Value:  authCookieValue,
