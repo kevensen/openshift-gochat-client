@@ -64,6 +64,7 @@ func main() {
 			Name:   "auth",
 			Value:  "",
 			Path:   "/",
+			Domain: *chatServerDomain,
 			MaxAge: -1,
 		})
 		w.Header()["Location"] = []string{"/logoutpage"}
