@@ -55,5 +55,6 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header()["Location"] = []string{"/chat"}
 	w.Header()["Connection"] = []string{"upgrade"}
+	w.Header()["Upgrade"] = []string{"websocket"}
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }

@@ -34,6 +34,8 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if authCookie, err := r.Cookie("auth"); err == nil {
 		data["UserData"] = objx.MustFromBase64(authCookie.Value)
 	}
+	w.Header()["Connection"] = []string{"upgrade"}
+	w.Header()["Upgrade"] = []string{"websocket"}
 	t.templ.Execute(w, data)
 
 }
