@@ -36,7 +36,10 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 		glog.Fatalln("Error Logging into OpenShift:", err)
 	}
 
-	if status != 200 {
+	if status == 403 || status == 401 {
+		w.Header()["Location"] = []string{"/denied"}
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	} else if status != 200 {
 		glog.Fatalln("Error Logging into OpenShift resulted in status:", status)
 	}
 
