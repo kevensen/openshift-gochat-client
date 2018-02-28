@@ -56,8 +56,8 @@ func main() {
 	myAuthHandler.chatServerDomain = *chatServerDomain
 	http.Handle("/", myAuthHandler)
 	http.Handle("/chat", myAuthHandler)
-	http.Handle("/denied", &templateHandler{filename: "denied.html"})
-	http.Handle("/login", &templateHandler{filename: "login.html"})
+	http.Handle("/denied", &templateHandler{filename: "denied.html", chatServer: *chatServer})
+	http.Handle("/login", &templateHandler{filename: "login.html", chatServer: *chatServer})
 	http.HandleFunc("/auth/", myAuthHandler.loginHandler)
 	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
