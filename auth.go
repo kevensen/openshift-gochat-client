@@ -50,10 +50,10 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 	glog.Infoln("Cookie domain", h.chatServerDomain)
 
 	http.SetCookie(w, &http.Cookie{
-		Name:   "auth",
-		Value:  authCookieValue,
-		Path:   "/",
-		Domain: h.chatServerDomain})
+		Name:  "auth",
+		Value: authCookieValue,
+		Path:  "/",
+	})
 	glog.Infoln("Cookie Written")
 
 	w.Header()["Location"] = []string{"/chat"}
