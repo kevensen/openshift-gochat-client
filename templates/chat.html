@@ -56,7 +56,7 @@
             return false;
           }
 
-          socket.send(JSON.stringify({"Message": msgBox.val()}));
+          socket.send(JSON.stringify({"Message": msgBox.val(), "Name": {{.UserData.name}}}));
           msgBox.val("");
           return false;
 

@@ -7,20 +7,20 @@ import (
 	"net/http"
 	"path/filepath"
 	"sync"
+	"net/url"
 
 	"github.com/golang/glog"
 	"github.com/stretchr/objx"
+	"github.com/koding/websocketproxy"
 )
 
 type templateHandler struct {
 	once       sync.Once
 	filename   string
 	templ      *template.Template
-	chatServer string
 }
 
 var templatePath *string
-var HtpasswdPath *string
 
 //Primary handler
 func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +28,7 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		t.templ = template.Must(template.ParseFiles(filepath.Join(*templatePath, t.filename)))
 	})
 	data := map[string]interface{}{
-		"Host": t.chatServer,
+		"Host": r.Host,
 	}
 	glog.Infoln("Server Host:", data["Host"])
 	if authCookie, err := r.Cookie("auth"); err == nil {
@@ -51,13 +51,13 @@ func main() {
 	flag.Parse()
 
 	myAuthHandler := new(authHandler)
-	myAuthHandler.next = &templateHandler{filename: "chat.html", chatServer: *chatServer}
+	myAuthHandler.next = &templateHandler{filename: "chat.html"}
 	myAuthHandler.ocp.apiHost = *openshiftApiHost
-	myAuthHandler.chatServerDomain = *chatServerDomain
+
 	http.Handle("/", myAuthHandler)
 	http.Handle("/chat", myAuthHandler)
-	http.Handle("/denied", &templateHandler{filename: "denied.html", chatServer: *chatServer})
-	http.Handle("/login", &templateHandler{filename: "login.html", chatServer: *chatServer})
+	http.Handle("/denied", &templateHandler{filename: "denied.html"})
+	http.Handle("/login", &templateHandler{filename: "login.html"})
 	http.HandleFunc("/auth/", myAuthHandler.loginHandler)
 	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
@@ -71,6 +71,14 @@ func main() {
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	})
 	http.Handle("/logoutpage", &templateHandler{filename: "logoutpage.html"})
+	
+	chatServerURL, err := url.Parse("ws://" +  *chatServer)
+	if err != nil {
+		glog.Errorln(err)
+	}
+	http.Handle("/room",  websocketproxy.ProxyHandler(chatServerURL))
+	
+	
 
 	glog.Infoln("Starting the web server on", *host)
 	if err := http.ListenAndServe(*host, nil); err != nil {
