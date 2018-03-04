@@ -17,7 +17,6 @@ type OpenShiftAuth struct {
 
 func (ocp *OpenShiftAuth) login(token string) (*User, error, int) {
 	var user = new(User)
-	glog.Infoln("Token:", token)
 	glog.Infoln("Obtaining user from", ocp.apiHost+"/oapi/v1/users/~")
 	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 
