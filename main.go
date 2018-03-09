@@ -71,11 +71,12 @@ func main() {
 	})
 	http.Handle("/logoutpage", &templateHandler{filename: "logoutpage.html"})
 	
-	chatServerURL, err := url.Parse("ws://" +  *chatServer + "/room")
+	chatServerURL, err := url.Parse("ws://" +  *chatServer)
+	glog.Infoln("The backend is", *chatServerURL)
 	if err != nil {
 		glog.Errorln(err)
 	}
-	http.Handle("/room/",  websocketproxy.ProxyHandler(chatServerURL))
+	http.Handle("/room",  websocketproxy.ProxyHandler(chatServerURL))
 	
 	
 

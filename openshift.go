@@ -50,7 +50,7 @@ func (ocp *OpenShiftAuth) getProject() string {
 		Get("https://" + ocp.apiHost + "/oapi/v1/projects/~")
 
 	glog.Infoln("Status Code:", resp.StatusCode())
-	glog.Infoln("Body:", resp.Body())
+	glog.Infoln("Body:", string(resp.Body()))
 
 	if err != nil {
 		glog.Errorln("Error", err)
