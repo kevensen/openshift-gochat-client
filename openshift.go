@@ -38,6 +38,7 @@ func (ocp *OpenShiftAuth) login(token string) (*User, error, int) {
 	return user, nil, resp.StatusCode()
 }
 
+<<<<<<< HEAD
 func (ocp *OpenShiftAuth) get_project() string {
 
     glog.Infoln("Obtaining prject name from", ocp.apiHost+"/oapi/v1/projects/~")
