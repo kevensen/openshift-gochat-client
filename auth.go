@@ -62,7 +62,7 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *authHandler) rollHandler(w http.ResponseWriter, r *http.Request) {
     glog.Infoln("Attempting to roll dice")
-    h.ocp.getProject()
+    glog.Infoln("Project Space:", GetOcpProject())
 }
 
 

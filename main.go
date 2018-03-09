@@ -72,7 +72,7 @@ func main() {
 	http.Handle("/logoutpage", &templateHandler{filename: "logoutpage.html"})
 	
 	chatServerURL, err := url.Parse("ws://" +  *chatServer)
-	glog.Infoln("The backend is", *chatServerURL)
+	glog.Infoln("The backend is", *chatServer)
 	if err != nil {
 		glog.Errorln(err)
 	}

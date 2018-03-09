@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/glog"
 	resty "gopkg.in/resty.v1"
+	"os"
 )
 
 type OpenShiftAuth struct {
@@ -38,22 +39,7 @@ func (ocp *OpenShiftAuth) login(token string) (*User, error, int) {
 	return user, nil, resp.StatusCode()
 }
 
-func (ocp *OpenShiftAuth) getProject() string {
-
-    glog.Infoln("Obtaining prject name from", ocp.apiHost+"/oapi/v1/projects/~")
-	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
-
-	resp, err := resty.R().
-		SetHeader("Accept", "application/json").
-		SetHeader("Content-Type", "application/json").
-		SetAuthToken(ocp.token).
-		Get("https://" + ocp.apiHost + "/oapi/v1/projects/~")
-
-	glog.Infoln("Status Code:", resp.StatusCode())
-	glog.Infoln("Body:", string(resp.Body()))
-
-	if err != nil {
-		glog.Errorln("Error", err)
-	}
-	return "rolled"
+func GetOcpProject() string {
+	
+	return os.Getenv("OPENSHIFT_BUILD_NAMESPACE")
 }
