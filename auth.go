@@ -31,6 +31,7 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	token := r.PostFormValue("token")
 	user, err, status := h.ocp.login(token)
+	h.ocp.token = token
 	if err != nil {
 		glog.Fatalln("Error Logging into OpenShift:", err)
 	}

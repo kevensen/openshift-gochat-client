@@ -46,7 +46,7 @@ func (ocp *OpenShiftAuth) getProject() string {
 	resp, err := resty.R().
 		SetHeader("Accept", "application/json").
 		SetHeader("Content-Type", "application/json").
-		SetAuthToken(token).
+		SetAuthToken(ocp.token).
 		Get("https://" + ocp.apiHost + "/oapi/v1/projects/~")
 
 	glog.Infoln("Status Code:", resp.StatusCode())
