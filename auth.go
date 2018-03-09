@@ -58,3 +58,9 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header()["Location"] = []string{"/chat"}
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
+
+func (h *authHandler) rollHandler(w http.ResponseWriter, r *http.Request) {
+    glog.Infoln("Attempting to roll dice")
+}
+
+

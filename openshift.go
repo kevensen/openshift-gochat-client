@@ -37,3 +37,26 @@ func (ocp *OpenShiftAuth) login(token string) (*User, error, int) {
 	}
 	return user, nil, resp.StatusCode()
 }
+
+func (ocp *OpenShiftAuth) get_project(token string) string {
+    var project_name = string
+    glog.Infoln("Obtaining prject name from", ocp.apiHost+"/oapi/v1/projects/~")
+	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+
+	resp, err := resty.R().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetAuthToken(token).
+		Get("https://" + ocp.apiHost + "/oapi/v1/projects/~")
+
+	glog.Infoln("Status Code:", resp.StatusCode())
+
+	if err != nil {
+		glog.Errorln("Error", err)
+	}
+	err = json.Unmarshal(resp.Body(), &user)
+	if err != nil {
+		glog.Errorln("Error", err)
+	}
+	return user, nil, resp.StatusCode()
+}
