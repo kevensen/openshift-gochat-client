@@ -1,5 +1,13 @@
 package main
 
+import (
+	"crypto/tls"
+	"encoding/json"
+
+	"github.com/golang/glog"
+	resty "gopkg.in/resty.v1"
+)
+
 /* {"kind":"User",
 	"apiVersion":"v1",
 	"metadata": {
@@ -22,9 +30,33 @@ type userMetadata struct {
 }
 
 type User struct {
+	token      string
 	Kind       string
 	ApiVersion string
 	Metadata   userMetadata
 	Identities []string
 	Groups     []string
+}
+
+func (user *User) login() (error, int) {
+
+	glog.Infoln("Obtaining user from", *OpenshiftApiHost+"/oapi/v1/users/~")
+	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+
+	resp, err := resty.R().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetAuthToken(user.token).
+		Get("https://" + *OpenshiftApiHost + "/oapi/v1/users/~")
+
+	glog.Infoln("Status Code:", resp.StatusCode())
+
+	if err != nil {
+		glog.Errorln("Error", err)
+	}
+	err = json.Unmarshal(resp.Body(), &user)
+	if err != nil {
+		glog.Errorln("Error", err)
+	}
+	return nil, resp.StatusCode()
 }

@@ -5,19 +5,19 @@ import (
 	"flag"
 	"html/template"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"sync"
-	"net/url"
 
 	"github.com/golang/glog"
-	"github.com/stretchr/objx"
 	"github.com/koding/websocketproxy"
+	"github.com/stretchr/objx"
 )
 
 type templateHandler struct {
-	once       sync.Once
-	filename   string
-	templ      *template.Template
+	once     sync.Once
+	filename string
+	templ    *template.Template
 }
 
 var templatePath *string
@@ -38,6 +38,8 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
+var OpenshiftApiHost *string
+
 /*
 * Main entry point.  Flags, Handlers, and authentication providers configured here.
 *
@@ -45,19 +47,17 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func main() {
 	var host = flag.String("host", "localhost:8080", "The host address of the application.")
 	templatePath = flag.String("templatePath", "templates/", "The path to the HTML templates.  This is relative to the location from which \"gochat\" is executed.  Can be absolute.")
-	var openshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
+	OpenshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
 	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
 	flag.Parse()
 
 	myAuthHandler := new(authHandler)
 	myAuthHandler.next = &templateHandler{filename: "chat.html"}
-	myAuthHandler.ocp.apiHost = *openshiftApiHost
 
 	http.Handle("/", myAuthHandler)
 	http.Handle("/chat", myAuthHandler)
 	http.Handle("/denied", &templateHandler{filename: "denied.html"})
 	http.Handle("/login", &templateHandler{filename: "login.html"})
-	http.HandleFunc("/roll", myAuthHandler.rollHandler)
 	http.HandleFunc("/auth/", myAuthHandler.loginHandler)
 	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
@@ -70,15 +70,13 @@ func main() {
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	})
 	http.Handle("/logoutpage", &templateHandler{filename: "logoutpage.html"})
-	
-	chatServerURL, err := url.Parse("ws://" +  *chatServer)
+
+	chatServerURL, err := url.Parse("ws://" + *chatServer)
 	glog.Infoln("The backend is", *chatServer)
 	if err != nil {
 		glog.Errorln(err)
 	}
-	http.Handle("/room",  websocketproxy.ProxyHandler(chatServerURL))
-	
-	
+	http.Handle("/room", websocketproxy.ProxyHandler(chatServerURL))
 
 	glog.Infoln("Starting the web server on", *host)
 	if err := http.ListenAndServe(*host, nil); err != nil {

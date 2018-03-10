@@ -11,8 +11,7 @@ import (
 )
 
 type authHandler struct {
-	next             http.Handler
-	ocp              OpenShiftAuth
+	next http.Handler
 }
 
 func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -30,8 +29,11 @@ func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	token := r.PostFormValue("token")
-	user, err, status := h.ocp.login(token)
-	h.ocp.token = token
+	user := new(User)
+	user.token = token
+
+	err, status := user.login()
+
 	if err != nil {
 		glog.Fatalln("Error Logging into OpenShift:", err)
 	}
@@ -51,18 +53,11 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}).MustBase64()
 
 	http.SetCookie(w, &http.Cookie{
-		Name:   "auth",
-		Value:  authCookieValue,
-		Path:   "/",
+		Name:  "auth",
+		Value: authCookieValue,
+		Path:  "/",
 	})
 
 	w.Header()["Location"] = []string{"/chat"}
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
-
-func (h *authHandler) rollHandler(w http.ResponseWriter, r *http.Request) {
-    glog.Infoln("Attempting to roll dice")
-    glog.Infoln("Project Space:", GetOcpProject())
-}
-
-
