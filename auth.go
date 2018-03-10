@@ -57,6 +57,7 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 		Value: authCookieValue,
 		Path:  "/",
 	})
+	Users[user.Metadata.Name] = *user
 
 	w.Header()["Location"] = []string{"/chat"}
 	w.WriteHeader(http.StatusTemporaryRedirect)

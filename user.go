@@ -52,11 +52,28 @@ func (user *User) login() (error, int) {
 	glog.Infoln("Status Code:", resp.StatusCode())
 
 	if err != nil {
-		glog.Errorln("Error", err)
+		return err, resp.StatusCode()
 	}
 	err = json.Unmarshal(resp.Body(), &user)
 	if err != nil {
-		glog.Errorln("Error", err)
+		return err, resp.StatusCode()
 	}
 	return nil, resp.StatusCode()
+}
+
+func (user *User) HasDice() bool {
+	var resource = *OpenshiftApiHost + "/oapi/v1/namespaces/" + *OpenshiftNamespace + "/imagestreams/dice"
+	glog.Infoln("Checking for dice at", resource)
+	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+
+	resp, err := resty.R().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetAuthToken(user.token).
+		Get("https://" + resource)
+	if err != nil || resp.StatusCode() != 200 {
+		return false
+	}
+
+	return true
 }

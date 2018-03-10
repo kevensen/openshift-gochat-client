@@ -10,7 +10,10 @@
     </style>
   </head>
   <body>
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script
+        src="https://code.jquery.com/jquery-3.3.1.js"
+        integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+        crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     
@@ -22,7 +25,6 @@
                         <nav class="navbar navbar-light bg-light">
                             User: {{.UserData.name}}
                             <input class="btn btn-outline-primary" type="submit" id="send" value="Send" />
-                            <a href="/roll" class="btn btn-outline-dark" role="button" id="roll">Role Dice</button>
                             <a href="/logout" class="btn btn-outline-danger" role="button" id="logout">Logout</a>
                         </nav>
                     </div>
@@ -37,54 +39,58 @@
     </div>
     
     <script>
-        
-
-      $(function(){
+    $(function(){
 
         var socket = null;
         var msgBox = $("#chatbox textarea");
         var messages = $("#messages");
 
-        $("#messagebox").on('scroll', function(){
-            scrolled=true;
-        });
 
-        $("#chatbox").submit(function(){
+        $("#chatbox").submit(function(event){
 
-          if (!msgBox.val()) return false;
-          if (!socket) {
-            alert("Error: There is no socket connection.");
+            if (!msgBox.val()) return false;
+            if (!socket) {
+                alert("Error: There is no socket connection.");
+                return false;
+            }
+            var message = msgBox.val()
+            if (message.startsWith("//roll")) {
+
+                event.preventDefault();
+                var posting = $.post("roll", { "Message": message, "Name": {{.UserData.name}} }, null, "json");
+
+
+            } else {
+                socket.send(JSON.stringify({"Message": message, "Name": {{.UserData.name}}}));
+            }
+            
+            msgBox.val("");
             return false;
-          }
-
-          socket.send(JSON.stringify({"Message": msgBox.val(), "Name": {{.UserData.name}}}));
-          msgBox.val("");
-          return false;
-
         });
 
         if (!window["WebSocket"]) {
-          alert("Error: Your browser does not support web sockets.")
+        alert("Error: Your browser does not support web sockets.")
         } else {
-          socket = new WebSocket("ws://{{.Host}}/room");
-          socket.onclose = function() {
-            alert("Connection has been closed.");
-          }
-          socket.onmessage = function(e) {
-            var msg = eval("("+e.data+")");
-            messages.append(
-                    $("<li>").append(
-							$("<strong>").text(msg.Name + ": "),
-							$("<span>").text(msg.Message),
-							$("<strong>").text(" - " + msg.When)
-                            )
-                    );
-          }
-          
+            socket = new WebSocket("ws://{{.Host}}/room");
+            socket.onclose = function() {
+                alert("Connection has been closed.");
+            }
+            socket.onmessage = function(e) {
+                var msg = eval("("+e.data+")");
+                messages.append(
+                        $("<li>").append(
+                                $("<strong>").text(msg.Name + ": "),
+                                $("<span>").text(msg.Message),
+                                $("<strong>").text(" - " + msg.When)
+                                )
+                        );
+            }
+        
         }
 
-      });
-
+    });
+    
+    
     </script>
 
 
