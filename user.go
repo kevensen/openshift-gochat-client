@@ -77,3 +77,16 @@ func (user *User) HasDice() bool {
 
 	return true
 }
+
+func (user *User) RollDice(dice *Dice) string {
+	var message string
+	if !user.HasDice() {
+		message = "tried to roll some dice but doesn't have any dice to roll."
+	} else {
+		job := NewJob(dice.numDice, dice.numSides, user.Metadata.Name)
+
+		message = job.Roll()
+
+	}
+	return message
+}

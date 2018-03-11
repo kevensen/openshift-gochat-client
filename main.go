@@ -4,7 +4,6 @@ package main
 import (
 	"flag"
 	"html/template"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/gorilla/websocket"
 	"github.com/koding/websocketproxy"
 	"github.com/stretchr/objx"
 )
@@ -84,38 +82,7 @@ func main() {
 		glog.Errorln(err)
 	}
 	http.Handle("/room", websocketproxy.ProxyHandler(chatServerURL))
-	http.HandleFunc("/roll", func(w http.ResponseWriter, r *http.Request) {
-		glog.Infoln("Roll Call")
-		r.ParseForm()
-		userName := r.FormValue("Name")
-		user := Users[userName]
-		websocketDialer := new(websocket.Dialer)
-		headers := make(http.Header)
-		cookie, _ := r.Cookie("auth")
-		headers.Add("Content-Type", "application/json")
-		headers.Add("Cookie", "auth="+cookie.Value)
-		headers.Add("Origin", "http://"+*host)
-		diceMessage := new(message)
-		diceMessage.Name = userName
-
-		if !user.HasDice() {
-			glog.Infoln(userName, "doesn't have any dice.")
-			diceMessage.Message = "tried to roll some dice but doesn't have any dice to roll."
-
-		} else {
-			glog.Infoln(userName, "has dice.")
-		}
-
-		conn, _, err := websocketDialer.Dial("ws://"+*host+"/room", headers)
-		if err != nil {
-			glog.Warningln(err)
-		}
-		if err := conn.WriteJSON(diceMessage); err != nil {
-			log.Println(err)
-			return
-		}
-
-	})
+	http.HandleFunc("/roll", RollDice)
 
 	glog.Infoln("Starting the web server on", *host)
 	if err := http.ListenAndServe(*host, nil); err != nil {

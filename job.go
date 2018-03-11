@@ -1,31 +1,151 @@
 package main
 
 import (
-	"regexp"
+	"crypto/tls"
+	"fmt"
+	"strings"
+	"time"
 
+	"encoding/json"
 	"strconv"
 
 	"github.com/golang/glog"
+	resty "gopkg.in/resty.v1"
 )
 
 type Job struct {
-	numDice  int
-	numSides int
-	userName string
+	userName   string
+	ApiVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Metadata   struct {
+		Name string `json:"name"`
+		Uid  string `json:"uid,omitempty"`
+	} `json:"metadata"`
+	Spec struct {
+		Template struct {
+			Spec struct {
+				Containers    []container `json:"containers"`
+				RestartPolicy string      `json:"restartPolicy"`
+			} `json:"spec"`
+		} `json:"template"`
+		BackoffLimit int `json:"backOffLimit"`
+	} `json:"spec"`
 }
 
-func NewJob(message string, userName string) *Job {
-	glog.Infoln(message)
-	var validRoll = regexp.MustCompile(`^//roll-dice(\d)-sides(\d)`)
-	var parsedRoll = validRoll.FindStringSubmatch(message)
-	job := new(Job)
-	if parsedRoll == nil {
-		job.numSides = 6
-		job.numDice = 1
-		return job
-	}
-	job.numDice, _ = strconv.Atoi(parsedRoll[1])
-	job.numSides, _ = strconv.Atoi(parsedRoll[2])
-	return job
+type container struct {
+	Name    string   `json:"name"`
+	Image   string   `json:"image"`
+	Command []string `json:"command"`
+}
 
+func NewJob(numDice int, numSides int, userName string) *Job {
+	job := new(Job)
+	job.userName = userName
+	job.ApiVersion = "batch/v1"
+	job.Kind = "Job"
+	job.Metadata.Name = "dice-" + userName
+
+	diceContainer := new(container)
+	diceContainer.Name = "dice-" + userName
+	diceContainer.Image = "docker-registry.default.svc:5000/" + *OpenshiftNamespace + "/dice"
+	diceContainer.Command = append(diceContainer.Command, "/opt/dice")
+	diceContainer.Command = append(diceContainer.Command, strconv.Itoa(numDice))
+	diceContainer.Command = append(diceContainer.Command, strconv.Itoa(numSides))
+
+	job.Spec.Template.Spec.Containers = append(job.Spec.Template.Spec.Containers, *diceContainer)
+	job.Spec.Template.Spec.RestartPolicy = "Never"
+	job.Spec.BackoffLimit = 4
+
+	return job
+}
+
+func (job *Job) Roll() string {
+	for job.exists() {
+		glog.Infoln("Job exists.  Attempting delete")
+		job.delete()
+		time.Sleep(200 * time.Millisecond)
+	}
+	if !job.create() {
+
+		return "has dice to roll but has trouble rolling dice."
+	}
+	var podList = new(PodList)
+	for len(podList.Items) == 0 {
+		podList.GetPodsforJob(job.Metadata.Uid, job.userName)
+	}
+	time.Sleep(5000 * time.Millisecond)
+	podList.Items[0].GetLogs(job.userName)
+
+	return "rolled " + string(job.Spec.Template.Spec.Containers[0].Command[1]) +
+		", " + string(job.Spec.Template.Spec.Containers[0].Command[2]) + " sided dice - " +
+		strings.Join(podList.Items[0].dice, ", ")
+}
+
+func (job *Job) create() bool {
+	var resource = *OpenshiftApiHost + "/apis/batch/v1/namespaces/" + *OpenshiftNamespace + "/jobs"
+	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	token := Users[job.userName].token
+
+	openshiftJob, err := json.Marshal(job)
+	if err != nil {
+		glog.Warning("Create Job - Error Marshalling -", err)
+		return false
+	}
+	fmt.Println(resource)
+	fmt.Println(string(openshiftJob))
+	resp, err := resty.R().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetAuthToken(token).
+		SetBody(openshiftJob).
+		Post("https://" + resource)
+	if err != nil || resp.StatusCode() > 299 {
+		glog.Warning("Create Job - Error in Response -", err, "-", resp.StatusCode())
+		return false
+	}
+	err = json.Unmarshal(resp.Body(), &job)
+	if err != nil {
+		glog.Warning("Create Job - Unmarshalling -", err)
+		return false
+	}
+
+	return true
+}
+
+func (job *Job) delete() bool {
+	var resource = *OpenshiftApiHost + "/apis/batch/v1/namespaces/" + *OpenshiftNamespace + "/jobs/dice-" + job.userName
+	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	token := Users[job.userName].token
+
+	resp, err := resty.R().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetAuthToken(token).
+		Delete("https://" + resource)
+	if err != nil || (resp.StatusCode() != 200 && resp.StatusCode() != 404) {
+		glog.Warning("Delete Job - Error in Response -", err, "-", resp.StatusCode())
+		return false
+	}
+
+	return true
+}
+
+func (job *Job) exists() bool {
+	var resource = *OpenshiftApiHost + "/apis/batch/v1/namespaces/" + *OpenshiftNamespace + "/jobs/dice-" + job.userName
+	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	token := Users[job.userName].token
+	resp, err := resty.R().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetAuthToken(token).
+		Get("https://" + resource)
+	if err != nil || (resp.StatusCode() != 200 && resp.StatusCode() != 404) {
+		glog.Warning("Job Exists - Error in Response -", err, "-", resp.StatusCode())
+		return false
+	} else if resp.StatusCode() == 404 {
+		glog.Infoln("Job Exists - Job not found.  Returning False")
+		return false
+	}
+
+	return true
 }
