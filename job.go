@@ -89,8 +89,8 @@ func (job *Job) Roll() string {
 	podList.Items[0].GetLogs(job.userName)
 
 	return "rolled " + string(job.Spec.Template.Spec.Containers[0].Command[1]) +
-		", " + string(job.Spec.Template.Spec.Containers[0].Command[2]) + " sided dice - " +
-		strings.Join(podList.Items[0].dice, ", ")
+		" " + string(job.Spec.Template.Spec.Containers[0].Command[2]) + "-sided dice: " +
+		strings.Join(podList.Items[0].dice, " ")
 }
 
 func (job *Job) create() bool {
