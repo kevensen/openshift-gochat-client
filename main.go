@@ -41,6 +41,7 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 var OpenshiftApiHost *string
 var OpenshiftNamespace *string
+var OpenshiftRegistry *string
 var Users map[string]User
 
 /*
@@ -52,6 +53,7 @@ func main() {
 	templatePath = flag.String("templatePath", "templates/", "The path to the HTML templates.  This is relative to the location from which \"gochat\" is executed.  Can be absolute.")
 	OpenshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
 	OpenshiftNamespace = flag.String("project", os.Getenv("OPENSHIFT_BUILD_NAMESPACE"), "The current working project.")
+	OpenshiftRegistry = flag.String("registry", "docker-registry.default.svc:5000", "The location of the container registry.")
 	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
 	flag.Parse()
 	Users = make(map[string]User)

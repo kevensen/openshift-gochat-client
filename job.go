@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"fmt"
 	"strings"
 	"time"
 
@@ -12,6 +11,12 @@ import (
 	"github.com/golang/glog"
 	resty "gopkg.in/resty.v1"
 )
+
+type JobList struct {
+	ApiVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Items      []Job  `json:"items"`
+}
 
 type Job struct {
 	userName   string
@@ -30,6 +35,9 @@ type Job struct {
 		} `json:"template"`
 		BackoffLimit int `json:"backOffLimit"`
 	} `json:"spec"`
+	Status struct {
+		Succeeded int `json:"succeeded,omitempty"`
+	} `json:"status,omitempty"`
 }
 
 type container struct {
@@ -47,7 +55,7 @@ func NewJob(numDice int, numSides int, userName string) *Job {
 
 	diceContainer := new(container)
 	diceContainer.Name = "dice-" + userName
-	diceContainer.Image = "docker-registry.default.svc:5000/" + *OpenshiftNamespace + "/dice"
+	diceContainer.Image = *OpenshiftRegistry + "/" + *OpenshiftNamespace + "/dice"
 	diceContainer.Command = append(diceContainer.Command, "/opt/dice")
 	diceContainer.Command = append(diceContainer.Command, strconv.Itoa(numDice))
 	diceContainer.Command = append(diceContainer.Command, strconv.Itoa(numSides))
@@ -73,7 +81,11 @@ func (job *Job) Roll() string {
 	for len(podList.Items) == 0 {
 		podList.GetPodsforJob(job.Metadata.Uid, job.userName)
 	}
-	time.Sleep(5000 * time.Millisecond)
+
+	for !job.completed() {
+		time.Sleep(1000 * time.Millisecond)
+	}
+
 	podList.Items[0].GetLogs(job.userName)
 
 	return "rolled " + string(job.Spec.Template.Spec.Containers[0].Command[1]) +
@@ -91,8 +103,6 @@ func (job *Job) create() bool {
 		glog.Warning("Create Job - Error Marshalling -", err)
 		return false
 	}
-	fmt.Println(resource)
-	fmt.Println(string(openshiftJob))
 	resp, err := resty.R().
 		SetHeader("Accept", "application/json").
 		SetHeader("Content-Type", "application/json").
@@ -106,6 +116,39 @@ func (job *Job) create() bool {
 	err = json.Unmarshal(resp.Body(), &job)
 	if err != nil {
 		glog.Warning("Create Job - Unmarshalling -", err)
+		return false
+	}
+
+	return true
+}
+
+func (job *Job) completed() bool {
+	var resource = *OpenshiftApiHost + "/apis/batch/v1/namespaces/" + *OpenshiftNamespace + "/jobs"
+	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	token := Users[job.userName].token
+
+	openshiftJob, err := json.Marshal(job)
+	if err != nil {
+		glog.Warning("Create Job - Error Marshalling -", err)
+		return false
+	}
+	resp, err := resty.R().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetAuthToken(token).
+		SetBody(openshiftJob).
+		Get("https://" + resource)
+	if err != nil || resp.StatusCode() > 299 {
+		glog.Warning("Get Job - Error in Response -", err, "-", resp.StatusCode())
+		return false
+	}
+	jobList := new(JobList)
+	err = json.Unmarshal(resp.Body(), &jobList)
+	if err != nil {
+		glog.Warning("Get Job - Unmarshalling -", err)
+		return false
+	}
+	if jobList.Items[0].Status.Succeeded == 0 {
 		return false
 	}
 

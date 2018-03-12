@@ -22,7 +22,13 @@ func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		panic(err.Error())
 	} else {
-		h.next.ServeHTTP(w, r)
+		userName := objx.MustFromBase64(cookie.Value)["name"].(string)
+		if _, ok := Users[userName]; !ok {
+			w.Header().Set("Location", "/logoutpage")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+		} else {
+			h.next.ServeHTTP(w, r)
+		}
 	}
 }
 
