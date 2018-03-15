@@ -60,33 +60,3 @@ func (user *User) login() (error, int) {
 	}
 	return nil, resp.StatusCode()
 }
-
-func (user *User) HasDice() bool {
-	var resource = *OpenshiftApiHost + "/oapi/v1/namespaces/" + *OpenshiftNamespace + "/imagestreams/dice"
-	glog.Infoln("Checking for dice at", resource)
-	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
-
-	resp, err := resty.R().
-		SetHeader("Accept", "application/json").
-		SetHeader("Content-Type", "application/json").
-		SetAuthToken(user.token).
-		Get("https://" + resource)
-	if err != nil || resp.StatusCode() != 200 {
-		return false
-	}
-
-	return true
-}
-
-func (user *User) RollDice(dice *Dice) string {
-	var message string
-	if !user.HasDice() {
-		message = "tried to roll some dice but doesn't have any dice to roll."
-	} else {
-		job := NewJob(dice.numDice, dice.numSides, user.Metadata.Name)
-
-		message = job.Roll()
-
-	}
-	return message
-}

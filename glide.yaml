@@ -1,0 +1,8 @@
+package: github.com/kevensen/openshift-gochat-client
+import:
+- package: k8s.io/client-go
+  version: v6.0.0
+- package: github.com/koding/websocketproxy
+  version: 14d189e9f3df43330910b3642dd44a019d3534a5
+- package: github.com/gorilla/websocket
+  version: v1.2.0

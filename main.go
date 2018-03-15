@@ -13,6 +13,10 @@ import (
 	"github.com/golang/glog"
 	"github.com/koding/websocketproxy"
 	"github.com/stretchr/objx"
+
+	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type templateHandler struct {
@@ -43,6 +47,7 @@ var OpenshiftApiHost *string
 var OpenshiftNamespace *string
 var OpenshiftRegistry *string
 var Users map[string]User
+var APIClientSet *kubernetes.Clientset
 
 /*
 * Main entry point.  Flags, Handlers, and authentication providers configured here.
@@ -55,9 +60,11 @@ func main() {
 	OpenshiftNamespace = flag.String("project", os.Getenv("OPENSHIFT_BUILD_NAMESPACE"), "The current working project.")
 	OpenshiftRegistry = flag.String("registry", "docker-registry.default.svc:5000", "The location of the container registry.")
 	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
+	var kubeconfig = flag.String("kubeconfig", os.Getenv("HOME")+"/.kube/config", "The path to the Kubernetes configuration file.")
 	flag.Parse()
 	Users = make(map[string]User)
-
+	var canAccessAPI = false
+	var config = new(restclient.Config)
 	myAuthHandler := new(authHandler)
 	myAuthHandler.next = &templateHandler{filename: "chat.html"}
 
@@ -76,6 +83,7 @@ func main() {
 		w.Header()["Location"] = []string{"/logoutpage"}
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	})
+
 	http.Handle("/logoutpage", &templateHandler{filename: "logoutpage.html"})
 
 	chatServerURL, err := url.Parse("ws://" + *chatServer)
@@ -84,7 +92,31 @@ func main() {
 		glog.Errorln(err)
 	}
 	http.Handle("/room", websocketproxy.ProxyHandler(chatServerURL))
-	http.HandleFunc("/roll", RollDice)
+
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
+		glog.Infoln("Token exists")
+		config, err = restclient.InClusterConfig()
+		if err != nil {
+			glog.Errorln(err)
+		} else {
+			canAccessAPI = true
+		}
+	} else if _, err := os.Stat(*kubeconfig); err == nil {
+		glog.Infoln("Kube config exists")
+		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			glog.Errorln(err)
+		} else {
+			canAccessAPI = true
+		}
+	} else {
+		glog.Warningln("Can't locate credentials to access API:")
+	}
+
+	if canAccessAPI {
+		APIClientSet, _ = kubernetes.NewForConfig(config)
+		http.HandleFunc("/roll", RollDiceHandler)
+	}
 
 	glog.Infoln("Starting the web server on", *host)
 	if err := http.ListenAndServe(*host, nil); err != nil {

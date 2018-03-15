@@ -29,7 +29,7 @@
                         </nav>
                     </div>
                     <div class="card-body"><textarea id="message" class="form-control"></textarea></div>
-                    <div class="card-footer text-left" style="max-height: 200; overflow-y:scroll" id="messagebox" name="messagebox">
+                    <div class="card-footer text-left" style="max-height: 200; overflow:auto" id="messagebox" name="messagebox">
                         <ul id="messages"></ul>
                     </div>
                 </div>
@@ -76,14 +76,18 @@
                 alert("Connection has been closed.");
             }
             socket.onmessage = function(e) {
+                var messagebox = document.getElementById("messagebox");
+                var isScrolledToBottom = messagebox.scrollHeight - messagebox.clientHeight <= messagebox.scrollTop + 1;
                 var msg = eval("("+e.data+")");
                 messages.append(
                         $("<li>").append(
-                                $("<strong>").text(msg.Name + ": "),
-                                $("<span>").text(msg.Message),
-                                $("<strong>").text(" - " + msg.When)
+                                $("<strong>").text(msg.Name),
+                                $("<strong>").text(" - " + msg.When + " - "),
+                                $("<span>").text(msg.Message)
                                 )
                         );
+                if(isScrolledToBottom)
+                    messagebox.scrollTop = messagebox.scrollHeight - messagebox.clientHeight;
             }
         
         }
