@@ -95,11 +95,20 @@ func main() {
 
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
 		glog.Infoln("Token exists")
-		canAccessAPI = true
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			glog.Errorln(err)
+		} else {
+			canAccessAPI = true
+		}
 	} else if _, err := os.Stat(*kubeconfig); err == nil {
 		glog.Infoln("Kube config exists")
-		canAccessAPI = true
-		config, _ = clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			glog.Errorln(err)
+		} else {
+			canAccessAPI = true
+		}
 	} else {
 		glog.Warningln("Can't locate credentials to access API:")
 	}

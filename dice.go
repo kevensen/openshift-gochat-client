@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"log"
 	"net/http"
 	"regexp"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/gorilla/websocket"
-	resty "gopkg.in/resty.v1"
 	batch_v1 "k8s.io/api/batch/v1"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -141,7 +139,7 @@ func (dice *Dice) roll() string {
 
 }
 
-func (dice *Dice) exist() bool {
+/* func (dice *Dice) exist() bool {
 	var resource = *OpenshiftApiHost + "/oapi/v1/namespaces/" + *OpenshiftNamespace + "/imagestreams/dice"
 	glog.Infoln("Checking for dice at", resource)
 	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
@@ -154,6 +152,12 @@ func (dice *Dice) exist() bool {
 	if err != nil || resp.StatusCode() != 200 {
 		return false
 	}
+
+	return true
+} */
+
+func (dice *Dice) exist() bool {
+	//var resource = *OpenshiftApiHost + "/oapi/v1/namespaces/" + *OpenshiftNamespace + "/imagestreams/dice"
 
 	return true
 }
