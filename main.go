@@ -95,7 +95,7 @@ func main() {
 
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
 		glog.Infoln("Token exists")
-		config, err := rest.InClusterConfig()
+		config, err = restclient.InClusterConfig()
 		if err != nil {
 			glog.Errorln(err)
 		} else {
