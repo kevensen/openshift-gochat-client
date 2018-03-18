@@ -76,7 +76,7 @@ func main() {
 	templatePath = flag.String("templatePath", "templates/", "The path to the HTML templates.  This is relative to the location from which \"gochat\" is executed.  Can be absolute.")
 	var openshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
 	var openshiftNamespace = flag.String("project", os.Getenv("OPENSHIFT_BUILD_NAMESPACE"), "The current working project.")
-	//var openshiftRegistry = flag.String("registry", "docker-registry.default.svc:5000", "The location of the container registry.")
+	var openshiftRegistry = flag.String("registry", "docker-registry.default.svc:5000", "The location of the container registry.")
 	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
 	var kubeconfig = flag.String("kubeconfig", os.Getenv("HOME")+"/.kube/config", "The path to the Kubernetes configuration file.")
 	var serviceAccount = flag.String("serviceAccount", "default", "The service account to talk to the OpenShift API")
@@ -87,6 +87,8 @@ func main() {
 	var config = new(restclient.Config)
 	myAuthHandler := NewAuthHandler(*serviceAccount, *openshiftNamespace, *serviceAccountToken, *openshiftApiHost, &templateHandler{filename: "chat.html"})
 	myAuthHandler.next = &templateHandler{filename: "chat.html"}
+
+	glog.Infoln("Registry", openshiftRegistry)
 
 	http.Handle("/", myAuthHandler)
 	http.Handle("/chat", myAuthHandler)
