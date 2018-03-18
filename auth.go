@@ -65,7 +65,7 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if len(segs) > 3 {
 		provider = segs[3]
 	}
-
+	glog.Infoln("URL", r.URL)
 	glog.Infoln("Action", action, "Provider", provider)
 	switch action {
 	case "login":
