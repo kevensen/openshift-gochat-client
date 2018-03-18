@@ -62,7 +62,7 @@ func ReadToken() string {
 	} else {
 		return ""
 	}
-	token, err := ioutil.ReadFile("/tmp/dat")
+	token, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
 		glog.Errorln(err)
 		return ""
