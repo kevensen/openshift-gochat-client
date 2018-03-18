@@ -59,10 +59,12 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 	//user.token = token
 
 	//err, status := user.login()
-
+	provider := ""
 	segs := strings.Split(r.URL.Path, "/")
 	action := segs[2]
-	provider := segs[3]
+	if len(segs) > 3 {
+		provider = segs[3]
+	}
 
 	glog.Infoln("Action", action, "Provider", provider)
 	switch action {
