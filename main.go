@@ -4,6 +4,7 @@ package main
 import (
 	"flag"
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -43,9 +44,6 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
-var OpenshiftApiHost *string
-var OpenshiftNamespace *string
-var OpenshiftRegistry *string
 var Users map[string]User
 var APIClientSet *kubernetes.Clientset
 
@@ -53,19 +51,41 @@ var APIClientSet *kubernetes.Clientset
 * Main entry point.  Flags, Handlers, and authentication providers configured here.
 *
  */
+
+func ReadToken() string {
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
+		glog.Infoln("Token exists")
+		if err != nil {
+			glog.Errorln(err)
+			return ""
+		}
+	} else {
+		return ""
+	}
+	token, err := ioutil.ReadFile("/tmp/dat")
+	if err != nil {
+		glog.Errorln(err)
+		return ""
+	}
+	return string(token)
+
+}
+
 func main() {
 	var host = flag.String("host", "localhost:8080", "The host address of the application.")
 	templatePath = flag.String("templatePath", "templates/", "The path to the HTML templates.  This is relative to the location from which \"gochat\" is executed.  Can be absolute.")
-	OpenshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
-	OpenshiftNamespace = flag.String("project", os.Getenv("OPENSHIFT_BUILD_NAMESPACE"), "The current working project.")
-	OpenshiftRegistry = flag.String("registry", "docker-registry.default.svc:5000", "The location of the container registry.")
+	var openshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
+	var openshiftNamespace = flag.String("project", os.Getenv("OPENSHIFT_BUILD_NAMESPACE"), "The current working project.")
+	//var openshiftRegistry = flag.String("registry", "docker-registry.default.svc:5000", "The location of the container registry.")
 	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
 	var kubeconfig = flag.String("kubeconfig", os.Getenv("HOME")+"/.kube/config", "The path to the Kubernetes configuration file.")
+	var serviceAccount = flag.String("serviceAccount", "default", "The service account to talk to the OpenShift API")
+	var serviceAccountToken = flag.String("serviceAccountToken", ReadToken(), "The service account token.")
 	flag.Parse()
 	Users = make(map[string]User)
 	var canAccessAPI = false
 	var config = new(restclient.Config)
-	myAuthHandler := new(authHandler)
+	myAuthHandler := NewAuthHandler(*serviceAccount, *openshiftNamespace, *serviceAccountToken, *openshiftApiHost, &templateHandler{filename: "chat.html"})
 	myAuthHandler.next = &templateHandler{filename: "chat.html"}
 
 	http.Handle("/", myAuthHandler)

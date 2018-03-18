@@ -5,14 +5,11 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/golang/glog"
 	"github.com/gorilla/websocket"
 	batch_v1 "k8s.io/api/batch/v1"
 	core_v1 "k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Dice struct {
@@ -23,7 +20,7 @@ type Dice struct {
 	JobName  string
 }
 
-func NewDice(message string, userName string) *Dice {
+func NewDice(message string, userName string, registry string, namespace string) *Dice {
 	var validRoll = regexp.MustCompile(`^//roll-dice(\d+)-sides(\d+)`)
 	var parsedRoll = validRoll.FindStringSubmatch(message)
 	dice := new(Dice)
@@ -44,7 +41,7 @@ func NewDice(message string, userName string) *Dice {
 
 	diceContainer := &core_v1.Container{
 		Name:    dice.JobName,
-		Image:   *OpenshiftRegistry + "/" + *OpenshiftNamespace + "/dice",
+		Image:   registry + "/" + namespace + "/dice",
 		Command: diceCommand,
 	}
 	var backoff int32
@@ -73,7 +70,7 @@ func RollDiceHandler(w http.ResponseWriter, r *http.Request) {
 	diceMessage := new(message)
 	diceMessage.Name = userName
 
-	dice := NewDice(r.FormValue("Message"), userName)
+	dice := NewDice(r.FormValue("Message"), userName, "", "")
 	if dice.exist() {
 		diceMessage.Message = "rolled " + strconv.Itoa(dice.numDice) + " " + strconv.Itoa(dice.numSides) + "-sided dice: " + dice.roll()
 	} else {
@@ -91,7 +88,7 @@ func RollDiceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (dice *Dice) roll() string {
-	var job *batch_v1.Job
+	/*var job *batch_v1.Job
 	glog.Infoln("Dice - roll - Looking for job", dice.JobName)
 	_, err := APIClientSet.BatchV1().Jobs(*OpenshiftNamespace).Get(dice.JobName, meta_v1.GetOptions{})
 	if err != nil && !strings.Contains(err.Error(), "not found") {
@@ -135,7 +132,8 @@ func (dice *Dice) roll() string {
 	final := re_leadclose_whtsp.ReplaceAllString(string(body), "")
 	final = re_inside_whtsp.ReplaceAllString(final, " ")
 
-	return final
+	return final*/
+	return "5"
 
 }
 
