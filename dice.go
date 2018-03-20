@@ -5,22 +5,29 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/gorilla/websocket"
-	batch_v1 "k8s.io/api/batch/v1"
-	core_v1 "k8s.io/api/core/v1"
+	imagev1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type Dice struct {
-	numDice  int
-	numSides int
-	Job      *batch_v1.Job
-	userName string
-	JobName  string
+	numDice    int
+	numSides   int
+	Job        *batchv1.Job
+	userName   string
+	JobName    string
+	restConfig *rest.Config
 }
 
-func NewDice(message string, userName string, registry string, namespace string) *Dice {
+func NewDice(message string, userName string) *Dice {
 	var validRoll = regexp.MustCompile(`^//roll-dice(\d+)-sides(\d+)`)
 	var parsedRoll = validRoll.FindStringSubmatch(message)
 	dice := new(Dice)
@@ -39,14 +46,14 @@ func NewDice(message string, userName string, registry string, namespace string)
 	diceCommand = append(diceCommand, strconv.Itoa(dice.numDice))
 	diceCommand = append(diceCommand, strconv.Itoa(dice.numSides))
 
-	diceContainer := &core_v1.Container{
+	diceContainer := &corev1.Container{
 		Name:    dice.JobName,
-		Image:   registry + "/" + namespace + "/dice",
+		Image:   *openshiftRegistry + "/" + *openshiftNamespace + "/dice",
 		Command: diceCommand,
 	}
 	var backoff int32
 	backoff = 4
-	job := new(batch_v1.Job)
+	job := new(batchv1.Job)
 	job.ObjectMeta.Name = dice.JobName
 	job.Spec.Template.ObjectMeta.Name = dice.JobName
 	job.Spec.Template.Spec.Containers = append(job.Spec.Template.Spec.Containers, *diceContainer)
@@ -54,6 +61,12 @@ func NewDice(message string, userName string, registry string, namespace string)
 	job.Spec.BackoffLimit = &backoff
 
 	dice.Job = job
+
+	dice.restConfig = &rest.Config{
+		Host:            *openshiftApiHost,
+		BearerToken:     UserTokens[userName],
+		TLSClientConfig: rest.TLSClientConfig{Insecure: *allowInsecure},
+	}
 
 	return dice
 }
@@ -70,7 +83,7 @@ func RollDiceHandler(w http.ResponseWriter, r *http.Request) {
 	diceMessage := new(message)
 	diceMessage.Name = userName
 
-	dice := NewDice(r.FormValue("Message"), userName, "", "")
+	dice := NewDice(r.FormValue("Message"), userName)
 	if dice.exist() {
 		diceMessage.Message = "rolled " + strconv.Itoa(dice.numDice) + " " + strconv.Itoa(dice.numSides) + "-sided dice: " + dice.roll()
 	} else {
@@ -88,34 +101,53 @@ func RollDiceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (dice *Dice) roll() string {
-	/*var job *batch_v1.Job
+	var job *batchv1.Job
 	glog.Infoln("Dice - roll - Looking for job", dice.JobName)
-	_, err := APIClientSet.BatchV1().Jobs(*OpenshiftNamespace).Get(dice.JobName, meta_v1.GetOptions{})
+	kubeClient, err := kubernetes.NewForConfig(dice.restConfig)
+	if err != nil {
+		glog.Errorln("Dice - roll - Error creating API client -", err.Error())
+		return "has dice to roll but has trouble rolling dice."
+	}
+
+	_, err = kubeClient.BatchV1().Jobs(*openshiftNamespace).Get(dice.JobName, metav1.GetOptions{})
 	if err != nil && !strings.Contains(err.Error(), "not found") {
 		glog.Warningln("Dice - roll - Error getting job -", err.Error())
 		return "has dice to roll but has trouble rolling dice."
 	}
 
-	err = APIClientSet.BatchV1().Jobs(*OpenshiftNamespace).Delete(dice.JobName, &meta_v1.DeleteOptions{})
+	err = kubeClient.BatchV1().Jobs(*openshiftNamespace).Delete(dice.JobName, &metav1.DeleteOptions{})
 	if err != nil && !strings.Contains(err.Error(), "not found") {
 		glog.Warningln("Dice - roll - Error deleting job -", err)
 		return "has dice to roll but has trouble rolling dice."
 	}
-	job, err = APIClientSet.BatchV1().Jobs(*OpenshiftNamespace).Create(dice.Job)
+	job, err = kubeClient.BatchV1().Jobs(*openshiftNamespace).Create(dice.Job)
 	for err != nil {
 		glog.Warningln(err.Error())
 		err = nil
-		job, err = APIClientSet.BatchV1().Jobs(*OpenshiftNamespace).Create(dice.Job)
+		job, err = kubeClient.BatchV1().Jobs(*openshiftNamespace).Create(dice.Job)
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	listOptions := meta_v1.ListOptions{}
+	listOptions := metav1.ListOptions{}
 	listOptions.LabelSelector = "controller-uid=" + string(job.ObjectMeta.UID)
 
-	pods, err := APIClientSet.CoreV1().Pods(*OpenshiftNamespace).List(listOptions)
+	pods, err := kubeClient.CoreV1().Pods(*openshiftNamespace).List(listOptions)
+	if err != nil {
+		glog.Warningln("Dice - roll - Error getting pods -", err)
+		return "has dice to roll but has trouble rolling dice."
+	}
+
+	for len(pods.Items) == 0 {
+		pods, err = kubeClient.CoreV1().Pods(*openshiftNamespace).List(listOptions)
+		if err != nil {
+			glog.Warningln("Dice - roll - Error getting pods -", err)
+			return "has dice to roll but has trouble rolling dice."
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 	podName := pods.Items[0].ObjectMeta.Name
 
-	req := APIClientSet.CoreV1().Pods(*OpenshiftNamespace).GetLogs(podName, &core_v1.PodLogOptions{})
+	req := kubeClient.CoreV1().Pods(*openshiftNamespace).GetLogs(podName, &corev1.PodLogOptions{})
 
 	result := req.Do()
 	for result.Error() != nil {
@@ -132,30 +164,24 @@ func (dice *Dice) roll() string {
 	final := re_leadclose_whtsp.ReplaceAllString(string(body), "")
 	final = re_inside_whtsp.ReplaceAllString(final, " ")
 
-	return final*/
-	return "5"
+	return final
 
 }
 
-/* func (dice *Dice) exist() bool {
-	var resource = *OpenshiftApiHost + "/oapi/v1/namespaces/" + *OpenshiftNamespace + "/imagestreams/dice"
-	glog.Infoln("Checking for dice at", resource)
-	resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+func (dice *Dice) exist() bool {
 
-	resp, err := resty.R().
-		SetHeader("Accept", "application/json").
-		SetHeader("Content-Type", "application/json").
-		SetAuthToken(Users[dice.userName].token).
-		Get("https://" + resource)
-	if err != nil || resp.StatusCode() != 200 {
+	imageV1Client, err := imagev1.NewForConfig(dice.restConfig)
+	if err != nil {
+		glog.Errorln("Could not connect to OpenShift API:", err)
 		return false
 	}
 
-	return true
-} */
+	_, err = imageV1Client.ImageStreams(*openshiftNamespace).Get("dice", metav1.GetOptions{})
+	if err != nil {
+		glog.Errorln("Could not get ImageStream:", err)
+		return false
 
-func (dice *Dice) exist() bool {
-	//var resource = *OpenshiftApiHost + "/oapi/v1/namespaces/" + *OpenshiftNamespace + "/imagestreams/dice"
+	}
 
 	return true
 }

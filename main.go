@@ -12,12 +12,12 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	"github.com/kevensen/openshift-gochat-client/gomniauth/providers/openshift"
 	"github.com/koding/websocketproxy"
+	"github.com/stretchr/gomniauth"
 	"github.com/stretchr/objx"
 
-	"k8s.io/client-go/kubernetes"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+	openshiftV1 "github.com/openshift/api/user/v1"
 )
 
 type templateHandler struct {
@@ -25,8 +25,6 @@ type templateHandler struct {
 	filename string
 	templ    *template.Template
 }
-
-var templatePath *string
 
 //Primary handler
 func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +34,6 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"Host": r.Host,
 	}
-	glog.Infoln("Server Host:", data["Host"])
 	if authCookie, err := r.Cookie("auth"); err == nil {
 		data["UserData"] = objx.MustFromBase64(authCookie.Value)
 	}
@@ -44,17 +41,11 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
-var Users map[string]User
-var APIClientSet *kubernetes.Clientset
+var Users map[string]openshiftV1.User
+var UserTokens map[string]string
 
-/*
-* Main entry point.  Flags, Handlers, and authentication providers configured here.
-*
- */
-
-func ReadToken() string {
+func readToken() string {
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
-		glog.Infoln("Token exists")
 		if err != nil {
 			glog.Errorln(err)
 			return ""
@@ -71,22 +62,42 @@ func ReadToken() string {
 
 }
 
+var openshiftApiHost *string
+var openshiftNamespace *string
+var templatePath *string
+var openshiftRegistry *string
+var allowInsecure *bool
+
+/*
+* Main entry point.  Flags, Handlers, and authentication providers configured here.
+*
+ */
 func main() {
 	var host = flag.String("host", "localhost:8080", "The host address of the application.")
 	templatePath = flag.String("templatePath", "templates/", "The path to the HTML templates.  This is relative to the location from which \"gochat\" is executed.  Can be absolute.")
-	var openshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
-	var openshiftNamespace = flag.String("project", os.Getenv("OPENSHIFT_BUILD_NAMESPACE"), "The current working project.")
-	var openshiftRegistry = flag.String("registry", "docker-registry.default.svc:5000", "The location of the container registry.")
+	openshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
+	openshiftNamespace = flag.String("project", os.Getenv("OPENSHIFT_BUILD_NAMESPACE"), "The current working project.")
+	openshiftRegistry = flag.String("registry", "docker-registry.default.svc:5000", "The location of the container registry.")
 	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
-	var kubeconfig = flag.String("kubeconfig", os.Getenv("HOME")+"/.kube/config", "The path to the Kubernetes configuration file.")
 	var serviceAccount = flag.String("serviceAccount", "default", "The service account to talk to the OpenShift API")
-	var serviceAccountToken = flag.String("serviceAccountToken", ReadToken(), "The service account token.")
+	var serviceAccountToken = flag.String("serviceAccountToken", readToken(), "The service account token.")
+	allowInsecure = flag.Bool("insecure", false, "Allow insecure TLS connections")
 	flag.Parse()
-	Users = make(map[string]User)
-	var canAccessAPI = false
-	var config = new(restclient.Config)
-	myAuthHandler := NewAuthHandler(*serviceAccount, *openshiftNamespace, *serviceAccountToken, *openshiftApiHost, &templateHandler{filename: "chat.html"})
-	myAuthHandler.next = &templateHandler{filename: "chat.html"}
+	Users = make(map[string]openshiftV1.User)
+	UserTokens = make(map[string]string)
+
+	authServerMetadata := openshift.NewOAuthServerMetadata()
+	gomniauth.SetSecurityKey("Aua1nuYA1C0ANLdrJalRDSPc0hl8MhfO903hC9cJRb4E2pA76PRcT6bQSveW2kYH")
+	gomniauth.WithProviders(
+		openshift.New("system:serviceaccount:"+*openshiftNamespace+":"+*serviceAccount,
+			*serviceAccountToken, *openshiftNamespace, authServerMetadata))
+
+	myAuthHandler := NewAuthHandler(
+		*serviceAccount,
+		*serviceAccountToken,
+		authServerMetadata.AuthorizationEndpoint,
+		authServerMetadata.TokenEndpoint,
+		&templateHandler{filename: "chat.html"})
 
 	glog.Infoln("Registry", openshiftRegistry)
 
@@ -115,30 +126,7 @@ func main() {
 	}
 	http.Handle("/room", websocketproxy.ProxyHandler(chatServerURL))
 
-	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
-		glog.Infoln("Token exists")
-		config, err = restclient.InClusterConfig()
-		if err != nil {
-			glog.Errorln(err)
-		} else {
-			canAccessAPI = true
-		}
-	} else if _, err := os.Stat(*kubeconfig); err == nil {
-		glog.Infoln("Kube config exists")
-		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			glog.Errorln(err)
-		} else {
-			canAccessAPI = true
-		}
-	} else {
-		glog.Warningln("Can't locate credentials to access API:")
-	}
-
-	if canAccessAPI {
-		APIClientSet, _ = kubernetes.NewForConfig(config)
-		http.HandleFunc("/roll", RollDiceHandler)
-	}
+	http.HandleFunc("/roll", RollDiceHandler)
 
 	glog.Infoln("Starting the web server on", *host)
 	if err := http.ListenAndServe(*host, nil); err != nil {
