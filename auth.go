@@ -12,7 +12,6 @@ import (
 	userv1 "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	"github.com/stretchr/gomniauth"
 	"github.com/stretchr/objx"
-	"golang.org/x/oauth2"
 	authv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -20,8 +19,8 @@ import (
 )
 
 type authHandler struct {
-	next         http.Handler
-	omniAuthConf oauth2.Config
+	next http.Handler
+	//omniAuthConf oauth2.Config
 }
 
 func NewAuthHandler(saName string,
@@ -31,16 +30,16 @@ func NewAuthHandler(saName string,
 	next http.Handler) *authHandler {
 
 	newAuthHandler := new(authHandler)
-	conf := oauth2.Config{
-		ClientID:     "system:serviceaccount:" + *openshiftNamespace + ":" + saName,
-		ClientSecret: saToken,
-		Scopes:       []string{"user:info", "user:check-access"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  authUrl,
-			TokenURL: tokenUrl,
-		},
-	}
-	newAuthHandler.omniAuthConf = conf
+	/* 	conf := oauth2.Config{
+	   		ClientID:     "system:serviceaccount:" + *openshiftNamespace + ":" + saName,
+	   		ClientSecret: saToken,
+	   		Scopes:       []string{"user:info", "user:check-access"},
+	   		Endpoint: oauth2.Endpoint{
+	   			AuthURL:  authUrl,
+	   			TokenURL: tokenUrl,
+	   		},
+	   	}
+	   	newAuthHandler.omniAuthConf = conf */
 	newAuthHandler.next = next
 
 	return newAuthHandler
@@ -121,8 +120,6 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 			glog.Errorln("could not get User:", err)
 			w.Header().Set("Location", "/denied")
 			w.WriteHeader(http.StatusTemporaryRedirect)
-		} else {
-			glog.Infof("User: ", user.ObjectMeta.Name)
 		}
 
 		kubeClient, err := kubernetes.NewForConfig(config)

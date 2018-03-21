@@ -62,6 +62,24 @@ func readToken() string {
 
 }
 
+func readNamespace() string {
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		if err != nil {
+			glog.Errorln(err)
+			return os.Getenv("OPENSHIFT_BUILD_NAMESPACE")
+		}
+	} else {
+		return os.Getenv("OPENSHIFT_BUILD_NAMESPACE")
+	}
+	namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		glog.Errorln(err)
+		return os.Getenv("OPENSHIFT_BUILD_NAMESPACE")
+	}
+	return string(namespace)
+
+}
+
 var openshiftApiHost *string
 var openshiftNamespace *string
 var templatePath *string
@@ -76,7 +94,7 @@ func main() {
 	var host = flag.String("host", "localhost:8080", "The host address of the application.")
 	templatePath = flag.String("templatePath", "templates/", "The path to the HTML templates.  This is relative to the location from which \"gochat\" is executed.  Can be absolute.")
 	openshiftApiHost = flag.String("openshiftApiHost", "172.30.0.1", "The location of the OpenShift API.")
-	openshiftNamespace = flag.String("project", os.Getenv("OPENSHIFT_BUILD_NAMESPACE"), "The current working project.")
+	openshiftNamespace = flag.String("project", readNamespace(), "The current working project.")
 	openshiftRegistry = flag.String("registry", "docker-registry.default.svc:5000", "The location of the container registry.")
 	var chatServer = flag.String("chatServer", "localhost:8081", "The location of the OpenShift Gochat Server")
 	var serviceAccount = flag.String("serviceAccount", "default", "The service account to talk to the OpenShift API")
