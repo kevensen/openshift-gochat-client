@@ -41,9 +41,6 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
-var Users map[string]openshiftV1.User
-var UserTokens map[string]string
-
 func readToken() string {
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
 		if err != nil {
@@ -85,6 +82,8 @@ var openshiftNamespace *string
 var templatePath *string
 var openshiftRegistry *string
 var allowInsecure *bool
+var users map[string]openshiftV1.User
+var userTokens map[string]string
 
 /*
 * Main entry point.  Flags, Handlers, and authentication providers configured here.
@@ -101,8 +100,8 @@ func main() {
 	var serviceAccountToken = flag.String("serviceAccountToken", readToken(), "The service account token.")
 	allowInsecure = flag.Bool("insecure", false, "Allow insecure TLS connections")
 	flag.Parse()
-	Users = make(map[string]openshiftV1.User)
-	UserTokens = make(map[string]string)
+	users = make(map[string]openshiftV1.User)
+	userTokens = make(map[string]string)
 
 	authServerMetadata := openshift.NewOAuthServerMetadata()
 	gomniauth.SetSecurityKey("Aua1nuYA1C0ANLdrJalRDSPc0hl8MhfO903hC9cJRb4E2pA76PRcT6bQSveW2kYH")

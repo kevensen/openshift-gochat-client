@@ -30,16 +30,7 @@ func NewAuthHandler(saName string,
 	next http.Handler) *authHandler {
 
 	newAuthHandler := new(authHandler)
-	/* 	conf := oauth2.Config{
-	   		ClientID:     "system:serviceaccount:" + *openshiftNamespace + ":" + saName,
-	   		ClientSecret: saToken,
-	   		Scopes:       []string{"user:info", "user:check-access"},
-	   		Endpoint: oauth2.Endpoint{
-	   			AuthURL:  authUrl,
-	   			TokenURL: tokenUrl,
-	   		},
-	   	}
-	   	newAuthHandler.omniAuthConf = conf */
+
 	newAuthHandler.next = next
 
 	return newAuthHandler
@@ -55,7 +46,7 @@ func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		panic(err.Error())
 	} else {
 		userName := objx.MustFromBase64(cookie.Value)["name"].(string)
-		if _, ok := Users[userName]; !ok {
+		if _, ok := users[userName]; !ok {
 			w.Header().Set("Location", "/logoutpage")
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		} else {
@@ -102,7 +93,6 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Location", "/denied")
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		}
-
 		config := &rest.Config{
 			Host:            *openshiftApiHost,
 			BearerToken:     creds.Get("access_token").String(),
@@ -164,8 +154,8 @@ func (h *authHandler) loginHandler(w http.ResponseWriter, r *http.Request) {
 			Value: authCookieValue,
 			Path:  "/",
 		})
-		Users[user.ObjectMeta.Name] = *user
-		UserTokens[user.ObjectMeta.Name] = creds.Get("access_token").String()
+		users[user.ObjectMeta.Name] = *user
+		userTokens[user.ObjectMeta.Name] = creds.Get("access_token").String()
 
 		w.Header().Set("Location", "/chat")
 		w.WriteHeader(http.StatusTemporaryRedirect)

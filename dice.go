@@ -64,7 +64,7 @@ func NewDice(message string, userName string) *Dice {
 
 	dice.restConfig = &rest.Config{
 		Host:            *openshiftApiHost,
-		BearerToken:     UserTokens[userName],
+		BearerToken:     userTokens[userName],
 		TLSClientConfig: rest.TLSClientConfig{Insecure: *allowInsecure},
 	}
 
